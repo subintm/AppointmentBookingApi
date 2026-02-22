@@ -117,10 +117,8 @@ exports.getAvailabilityByServiceIdANDDate = async (req, res) => {
       return res.status(404).json({ message: "Missing data" });
     }
 
-    
     const startOfDay = new Date(selectedDate);
     startOfDay.setHours(0, 0, 0, 0);
-
     const endOfDay = new Date(selectedDate);
     endOfDay.setHours(23, 59, 59, 999);
 
@@ -157,49 +155,61 @@ exports.getAvailabilityByServiceIdANDDate = async (req, res) => {
       current += duration;
     }
 
-    // ---------- NEW: Filter PAST slots ----------
-    const now = new Date();
-    const currentHours = now.getHours().toString().padStart(2, "0");
-    const currentMinutes = now.getMinutes().toString().padStart(2, "0");
-    const currentTimeStr = `${currentHours}:${currentMinutes}`;
+    // ---------- FIXED: Check if selectedDate is TODAY ----------
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Normalize to start of day
+    
+    const selectedDay = new Date(selectedDate);
+    selectedDay.setHours(0, 0, 0, 0);
 
-    console.log("Current time:", currentTimeStr); // e.g. "10:00"
+    let futureSlots = allSlots; // Default: all slots for future/past dates
 
-    // Filter only future slots (including current slot)
-    const futureSlots = allSlots.filter(slot => {
-      const slotMin = toMin(slot);
-      const currentMin = toMin(currentTimeStr);
-      return slotMin >= currentMin;
-    });
+    // Only filter past times if it's TODAY
+    if (selectedDay.getTime() === today.getTime()) {
+      const now = new Date();
+      const currentHours = now.getHours().toString().padStart(2, "0");
+      const currentMinutes = now.getMinutes().toString().padStart(2, "0");
+      const currentTimeStr = `${currentHours}:${currentMinutes}`;
 
-    console.log("Future slots before booked filter:", futureSlots);
+      console.log("Current time (today):", currentTimeStr);
 
-    // ---------- booked slots - FIXED: normalize format ----------
+      // Filter only future slots for TODAY
+      futureSlots = allSlots.filter(slot => {
+        const slotMin = toMin(slot);
+        const currentMin = toMin(currentTimeStr);
+        return slotMin >= currentMin;
+      });
+    }
+
+    console.log("Future slots after date check:", futureSlots);
+
+    // ---------- normalize booked slots ----------
     const bookedSlots = bookedAppointments.map(a => {
       const slot = a.slot.toString().trim();
       return slot.endsWith(':') ? slot.slice(0, -1) : slot;
     });
 
-    // ---------- available slots (use futureSlots instead of allSlots) ----------
+    // ---------- available slots ----------
     const availableSlots = futureSlots.filter(
       slot => !bookedSlots.includes(slot)
     );
 
     console.log("Final available slots:", availableSlots);
 
-    // ---------- final response ----------
     res.json({
       ServiceId: serviceId,
       ServiceName: service.name,
       Date: selectedDate,
+      IsToday: selectedDay.getTime() === today.getTime(), // Debug info
       BookedSlots: bookedSlots,
-      AvailableSlots: availableSlots  // Now only shows future slots!
+      AvailableSlots: availableSlots
     });
 
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 };
+
 
 
 
