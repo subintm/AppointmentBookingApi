@@ -211,9 +211,6 @@ exports.getAvailabilityByServiceIdANDDate = async (req, res) => {
 };
 
 
-
-
-
 exports.updateAvailability = async (req, res) => {
   try {
     const { id } = req.params;
